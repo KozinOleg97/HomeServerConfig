@@ -1,3 +1,6 @@
+# -----------------------------------------------------------
+# Основной домен (egoidei.giize.com) – редирект и .well-known
+# -----------------------------------------------------------
 server {
     listen 80;
     server_name ${DOMAIN};
@@ -5,26 +8,53 @@ server {
 }
 
 server {
-    listen 443 ssl http2;
+    listen 443 ssl;
+    http2 on;
     server_name ${DOMAIN};
 
-    ssl_certificate /etc/nginx/acme.sh/${DOMAIN}_ecc/${DOMAIN}.cer;
+    ssl_certificate /etc/nginx/acme.sh/${DOMAIN}_ecc/fullchain.cer;   # используем fullchain
     ssl_certificate_key /etc/nginx/acme.sh/${DOMAIN}_ecc/${DOMAIN}.key;
 
+    # .well-known для Matrix-клиента и сервера
+    location /.well-known/matrix/client {
+        default_type application/json;
+        add_header Access-Control-Allow-Origin *;
+        return 200 '{
+            "m.homeserver": {
+                "base_url": "https://${MATRIX_DOMAIN}:443"
+            }
+        }';
+    }
+
+    location /.well-known/matrix/server {
+        default_type application/json;
+        add_header Access-Control-Allow-Origin *;
+        return 200 '{
+            "m.server": "${MATRIX_DOMAIN}:443"
+        }';
+    }
+
+    # Всё остальное (если нужно) – например, заглушка или статика
     location / {
-        proxy_pass http://conduit:6167;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        return 404;
     }
 }
 
+# -----------------------------------------------------------
+# Matrix-клиентский поддомен (matrix.egoidei.giize.com)
+# -----------------------------------------------------------
 server {
-    listen 8448 ssl http2;
+    listen 80;
+    server_name ${MATRIX_DOMAIN};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
     server_name ${MATRIX_DOMAIN};
 
-    ssl_certificate /etc/nginx/acme.sh/${DOMAIN}_ecc/${DOMAIN}.cer;
+    ssl_certificate /etc/nginx/acme.sh/${DOMAIN}_ecc/fullchain.cer;
     ssl_certificate_key /etc/nginx/acme.sh/${DOMAIN}_ecc/${DOMAIN}.key;
 
     location / {
@@ -36,6 +66,29 @@ server {
     }
 }
 
+# -----------------------------------------------------------
+# Федерация Matrix (порт 8448) – поддомен matrix.egoidei.giize.com
+# -----------------------------------------------------------
+server {
+    listen 8448 ssl;
+    http2 on;
+    server_name ${MATRIX_DOMAIN};
+
+    ssl_certificate /etc/nginx/acme.sh/${DOMAIN}_ecc/fullchain.cer;
+    ssl_certificate_key /etc/nginx/acme.sh/${DOMAIN}_ecc/${DOMAIN}.key;
+
+    location / {
+        proxy_pass http://conduit:6167;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# -----------------------------------------------------------
+# Vaultwarden (без изменений, только fullchain.cer и http2)
+# -----------------------------------------------------------
 server {
     listen 80;
     server_name ${VAULTWARDEN_DOMAIN};
@@ -43,10 +96,11 @@ server {
 }
 
 server {
-    listen 443 ssl http2;
+    listen 443 ssl;
+    http2 on;
     server_name ${VAULTWARDEN_DOMAIN};
 
-    ssl_certificate /etc/nginx/acme.sh/${DOMAIN}_ecc/${DOMAIN}.cer;
+    ssl_certificate /etc/nginx/acme.sh/${DOMAIN}_ecc/fullchain.cer;
     ssl_certificate_key /etc/nginx/acme.sh/${DOMAIN}_ecc/${DOMAIN}.key;
 
     location / {

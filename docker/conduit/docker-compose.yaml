@@ -3,20 +3,11 @@ services:
     image: matrixconduit/matrix-conduit:latest
     container_name: conduit
     restart: unless-stopped
-    #    ports:
-    #      - "8448:6167"          # федерация
     volumes:
       - ./data:/var/lib/matrix-conduit/
+      - ./conduit.toml:/etc/conduit.toml:ro   # монтируем конфиг
     environment:
-      CONDUIT_SERVER_NAME: ${MATRIX_DOMAIN}
-      CONDUIT_DATABASE_PATH: /var/lib/matrix-conduit/
-      CONDUIT_DATABASE_BACKEND: rocksdb
-      CONDUIT_PORT: 6167
-      CONDUIT_MAX_REQUEST_SIZE: 20_000_000
-      CONDUIT_ALLOW_REGISTRATION: "false"
-      CONDUIT_ALLOW_FEDERATION: "true"
-      CONDUIT_TRUSTED_SERVERS: "matrix.org"
-      CONDUIT_ADDRESS: 0.0.0.0
+      - CONDUIT_CONFIG=/etc/conduit.toml
 
     networks:
       - main-net
