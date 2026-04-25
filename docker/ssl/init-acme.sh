@@ -10,24 +10,47 @@ fi
 
 # ---------- проверка обязательных переменных ----------
 : "${DOMAIN:?Ошибка: DOMAIN не задан в .env}"
-: "${DYNU_API_KEY:?Ошибка: DYNU_API_KEY не задан в .env}"
 : "${EMAIL:?Ошибка: EMAIL не задан в .env}"
+
+# проверка учётных данных Dynu
+if [ -n "${DYNU_CLIENT_ID:-}" ] && [ -n "${DYNU_CLIENT_SECRET:-}" ]; then
+    echo "Использую Dynu OAuth2 (Client ID + Secret)"
+elif [ -n "${DYNU_API_KEY:-}" ]; then
+    echo "Использую Dynu API Key (устаревший метод)"
+else
+    echo "Ошибка: необходимо задать DYNU_CLIENT_ID и DYNU_CLIENT_SECRET, либо DYNU_API_KEY в .env"
+    exit 1
+fi
 
 MAIN_DOMAIN="$DOMAIN"
 WILDCARD_DOMAIN="*.$DOMAIN"
 #RELOAD_CMD="docker restart nginx"
-RELOAD_CMD="docker exec nginx nginx -s reload"
+RELOAD_CMD="docker exec nginx nginx -s reload 2>/dev/null || true"
 
 # ---------- установка acme.sh (если отсутствует) ----------
 if ! command -v acme.sh &> /dev/null; then
   echo "Устанавливаю acme.sh с email=$EMAIL..."
   curl https://get.acme.sh | sh -s email="$EMAIL"
-  # подгружаем окружение acme.sh
-  . "$HOME/.acme.sh/acme.sh.env"
+  # после установки сразу задаём путь к acme.sh
+  export PATH="$HOME/.acme.sh:$PATH"
+  if ! command -v acme.sh &> /dev/null; then
+    echo "Ошибка: acme.sh не установлен корректно"
+    exit 1
+  fi
+  echo "acme.sh установлен успешно"
 fi
 
+
+echo "Настраиваю Let's Encrypt как центр сертификации..."
+acme.sh --set-default-ca --server letsencrypt
+
 # ---------- Dynu API ----------
-export Dynu_Secret="$DYNU_API_KEY"
+if [ -n "${DYNU_CLIENT_ID:-}" ] && [ -n "${DYNU_CLIENT_SECRET:-}" ]; then
+    export Dynu_ClientId="$DYNU_CLIENT_ID"
+    export Dynu_Secret="$DYNU_CLIENT_SECRET"
+else
+    export Dynu_Secret="$DYNU_API_KEY"
+fi
 
 ACME_HOME="$HOME/.acme.sh"
 DOMAIN_DIR="$ACME_HOME/${MAIN_DOMAIN}_ecc"   # ECC по умолчанию
