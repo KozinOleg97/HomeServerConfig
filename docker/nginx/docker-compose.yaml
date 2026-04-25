@@ -1,0 +1,21 @@
+services:
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8448:8448"
+    volumes:
+      - ./nginx.conf.template:/etc/nginx/conf.d/default.conf.template:ro
+      - ${HOME}/.acme.sh:/etc/nginx/acme.sh:ro
+    environment:
+      - DOMAIN=${DOMAIN}
+      - VAULTWARDEN_DOMAIN=${VAULTWARDEN_DOMAIN}
+      - MATRIX_DOMAIN=${MATRIX_DOMAIN}
+    entrypoint: /bin/sh -c
+    command:
+      - "envsubst '$${DOMAIN} $${VAULTWARDEN_DOMAIN} $${MATRIX_DOMAIN}' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"
+    networks:
+      - main-net

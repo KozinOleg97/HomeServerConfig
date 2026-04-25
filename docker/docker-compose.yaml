@@ -1,0 +1,6 @@
+include:
+  - ./network.yaml
+#  - ./security/docker-compose.yaml
+  - ./vaultwarden/docker-compose.yaml
+  - ./conduit/docker-compose.yaml
+  - ./nginx/docker-compose.yaml

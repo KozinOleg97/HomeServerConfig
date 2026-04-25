@@ -1,0 +1,43 @@
+*.iml
+#/.idea/
+.qodo
+
+
+# Файлы с секретами (токены, пароли)
+.env
+
+# Данные сервисов (базы, конфиги, загруженные файлы)
+**/data/
+**/vaultwarden_data/
+**/db_data/
+**/uploads/
+
+# SSL‑сертификаты и ключи
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+certs/
+acme.sh/
+
+# Файлы редакторов и ОС
+Thumbs.db
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Docker‑оверрайды (локальные изменения)
+docker-compose.override.yml
+docker-compose.override.yaml
+
+# Локальные бэкапы и дампы
+*.sql.gz
+*.tar.gz
+backups/
+
+# Любые папки, которые могут появиться при тестировании
+tmp/
+temp/
+
