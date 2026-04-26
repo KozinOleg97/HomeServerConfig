@@ -1,0 +1,12 @@
+services:
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    restart: unless-stopped
+    environment:
+      - GF_SERVER_ROOT_URL=https://${GRAFANA_DOMAIN}
+      - GF_SERVER_DOMAIN=${GRAFANA_DOMAIN}
+    volumes:
+      - ./grafana_data:/var/lib/grafana
+    networks:
+      - main-net

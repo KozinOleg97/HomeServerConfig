@@ -3,3 +3,5 @@ include:
   - ./vaultwarden/docker-compose.yaml
   - ./conduit/docker-compose.yaml
   - ./nginx/docker-compose.yaml
+  - ./timescaledb/docker-compose.yaml
+  - ./grafana/docker-compose.yaml
