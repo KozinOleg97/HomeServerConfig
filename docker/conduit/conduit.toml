@@ -4,7 +4,14 @@ database_path = "/var/lib/matrix-conduit/"
 database_backend = "rocksdb"
 port = 6167
 max_request_size = 20_000_000
-allow_registration = false
+allow_registration = true
 allow_federation = true
-trusted_servers = ["matrix.org"]
+#trusted_servers = ["matrix.org"]
 address = "0.0.0.0"
+
+turn_uris = [
+    "turns:turn.egoidei.giize.com:5349?transport=udp",
+    "turn:turn.egoidei.giize.com:3478?transport=udp",
+    "turns:turn.egoidei.giize.com:5349?transport=tcp",
+    "turn:turn.egoidei.giize.com:3478?transport=tcp"
+]
