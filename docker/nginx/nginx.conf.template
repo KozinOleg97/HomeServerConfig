@@ -5,6 +5,10 @@ ssl_session_cache shared:SSL:10m;
 ssl_session_timeout 1d;
 ssl_session_tickets off;
 
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
 
 # -----------------------------------------------------------
 # Основной домен (egoidei.giize.com) – редирект и .well-known
@@ -25,16 +29,92 @@ server {
     ssl_certificate /etc/nginx/acme.sh/${DOMAIN}_ecc/fullchain.cer;   # используем fullchain
     ssl_certificate_key /etc/nginx/acme.sh/${DOMAIN}_ecc/${DOMAIN}.key;
 
-    # .well-known для Matrix-клиента и сервера
+
+    # ============================================
+    # Transmission WebUI через поддиректорию /transmission
+    # ============================================
+    location /transmission/ {
+
+        client_max_body_size 100M;
+
+        # Убираем префикс /transmission из URI, чтобы запросы пошли в корень бэкенда
+        rewrite ^/transmission(/.*)$ $1 break;
+
+        proxy_pass http://transmission:9091;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # Важно для длительных запросов
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+
+        # Подменяем абсолютные пути в ответах, чтобы они указывали на /transmission/
+        sub_filter 'href="/' 'href="/transmission/';
+        sub_filter 'src="/' 'src="/transmission/';
+        sub_filter 'action="/' 'action="/transmission/';
+        sub_filter 'var transmission_url = "/transmission/web";' '';
+        sub_filter_once off;
+        proxy_redirect / /transmission/;
+    }
+
+
+    # ============================================
+    # Jellyfin через поддиректорию /jellyfin
+    # ============================================
+    location /jellyfin/ {
+        # Пробрасываем запросы к Jellyfin, сохраняя поддиректорию
+        proxy_pass http://jellyfin:8096/jellyfin/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+
+        # Для загрузки субтитров и больших запросов
+        client_max_body_size 100M;
+
+        # Обязательно для WebSocket и уведомлений
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # Важно: отключаем буферизацию для лучшей производительности
+        proxy_buffering off;
+    }
+
+
+    # ============================================
+    # WebDAV доступ к файлам
+    # ============================================
+    location /webdav/ {
+        # Убираем префикс /webdav/ из URI перед отправкой на бэкенд
+        rewrite ^/webdav(/.*)$ $1 break;
+
+        proxy_pass http://webdav:80;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Критично для WebDAV-методов (PROPFIND, MKCOL и т.д.)
+        proxy_set_header Destination $http_destination;
+        proxy_pass_request_headers on;
+
+        # Таймауты и размер загрузки
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+        client_max_body_size 0;            # без ограничений
+    }
+
     location /.well-known/matrix/client {
         default_type application/json;
-        add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
         add_header Access-Control-Allow-Origin *;
-        return 200 '{
-            "m.homeserver": {
-                "base_url": "https://${MATRIX_DOMAIN}:443"
-            }
-        }';
+        return 200 '{"m.homeserver": {"base_url": "https://${MATRIX_DOMAIN}"}}';
     }
 
     location /.well-known/matrix/server {
@@ -42,7 +122,7 @@ server {
         add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
         add_header Access-Control-Allow-Origin *;
         return 200 '{
-            "m.server": "${MATRIX_DOMAIN}:443"
+            "m.server": "${MATRIX_DOMAIN}:8448"
         }';
     }
 
@@ -66,13 +146,50 @@ server {
     http2 on;
     server_name ${MATRIX_DOMAIN};
 
+    client_max_body_size 100M;
+
     add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
 
     ssl_certificate /etc/nginx/acme.sh/${DOMAIN}_ecc/fullchain.cer;
     ssl_certificate_key /etc/nginx/acme.sh/${DOMAIN}_ecc/${DOMAIN}.key;
 
+    # .well-known для федерации – теперь на самом поддомене Matrix
+    location /.well-known/matrix/server {
+        default_type application/json;
+        add_header Access-Control-Allow-Origin *;
+        return 200 '{"m.server": "${MATRIX_DOMAIN}:8448"}';
+    }
+
+    # .well-known для клиента на поддомене Matrix
+    location /.well-known/matrix/client {
+        default_type application/json;
+        add_header Access-Control-Allow-Origin *;
+        return 200 '{
+            "m.homeserver": {"base_url": "https://${MATRIX_DOMAIN}"},
+            "livekit_url": "https://${MATRIX_DOMAIN}/livekit-jwt",
+            "org.matrix.msc4143.rtc_foci": [
+                {
+                    "type": "livekit",
+                    "livekit_service_url": "https://${MATRIX_DOMAIN}/livekit-jwt"
+                }
+            ]
+        }';
+    }
+
+
+
+
     location / {
-        proxy_pass http://conduit:6167;
+        proxy_pass http://tuwunel:6167;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    #Для MatrixRTC Auth Service
+    location /livekit-jwt/ {
+        proxy_pass http://lk-jwt-service:8081/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -88,13 +205,15 @@ server {
     http2 on;
     server_name ${MATRIX_DOMAIN};
 
+    client_max_body_size 100M;
+
     add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
 
     ssl_certificate /etc/nginx/acme.sh/${DOMAIN}_ecc/fullchain.cer;
     ssl_certificate_key /etc/nginx/acme.sh/${DOMAIN}_ecc/${DOMAIN}.key;
 
     location / {
-        proxy_pass http://conduit:6167;
+        proxy_pass http://tuwunel:6167;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -133,13 +252,48 @@ server {
         proxy_pass http://vaultwarden:80;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
+        proxy_set_header Connection $connection_upgrade;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
+
+# -----------------------------------------------------------
+# LiveKit SFU (WebSocket)
+# -----------------------------------------------------------
+server {
+    listen 80;
+    server_name ${LIVEKIT_DOMAIN};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${LIVEKIT_DOMAIN};
+
+    ssl_certificate /etc/nginx/acme.sh/${DOMAIN}_ecc/fullchain.cer;
+    ssl_certificate_key /etc/nginx/acme.sh/${DOMAIN}_ecc/${DOMAIN}.key;
+
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+
+    location / {
+        proxy_pass http://livekit:7880;        # если контейнер livekit в той же сети Docker
+        # или proxy_pass http://127.0.0.1:7880; (если порт 7880 проброшен на хост)
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+
 
 # -----------------------------------------------------------
 # Grafana

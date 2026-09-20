@@ -1,0 +1,20 @@
+# dns/docker-compose.yaml
+services:
+  adguardhome:
+    image: adguard/adguardhome:latest
+    container_name: adguardhome
+    network_mode: host          # Занимает порты 53, 8080 и т.д. напрямую на хосте
+    volumes:
+      - ./adguard/work:/opt/adguardhome/work     # Рабочие данные (статистика, фильтры, сессии)
+      - ./adguard/conf:/opt/adguardhome/conf     # Конфигурационный файл
+    restart: unless-stopped
+
+
+  unbound:
+    image: klutchell/unbound:latest
+    container_name: unbound
+    networks:
+      main-net:
+        ipv4_address: 10.100.0.200
+    volumes:
+      - ./unbound/unbound.conf:/etc/unbound/unbound.conf:ro

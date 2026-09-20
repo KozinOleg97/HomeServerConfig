@@ -3,12 +3,8 @@ services:
     image: coturn/coturn:latest
     container_name: coturn
     restart: unless-stopped
-    network_mode: host         # обязательно host для простоты проброса UDP‑портов
-    environment:
-      - TURN_USER=nobody   # для понижения привилегий внутри контейнера
-      - TURN_SERVER_TOKEN=${TURN_SERVER_TOKEN}
+    network_mode: host
     volumes:
-      - ./turnserver.conf.template:/etc/coturn/turnserver.conf.template:ro
+      - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
       - ${HOME}/.acme.sh:/etc/ssl/turn:ro
-      - ./entrypoint.sh:/entrypoint.sh:ro
-    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    command: [ "--log-file=stdout", "--static-auth-secret=${TURN_SERVER_TOKEN}" ]

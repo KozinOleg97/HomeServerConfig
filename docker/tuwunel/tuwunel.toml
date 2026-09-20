@@ -1,0 +1,76 @@
+# =====================================================
+# Tuwunel Configuration - matrix.egoidei.giize.com
+# =====================================================
+
+[global]
+# Основной домен сервера (должен совпадать с сертификатом)
+server_name = "matrix.egoidei.giize.com"
+
+# Путь к базе данных (внутри контейнера)
+database_path = "/var/lib/tuwunel/"
+
+# Порт для внутренних соединений (между nginx и tuwunel)
+port = 6167
+
+# Адрес для прослушивания (0.0.0.0 = все интерфейсы)
+address = "0.0.0.0"
+
+# Максимальный размер запроса (~20 MB для файлов)
+max_request_size = 20000000
+
+# =====================================================
+# Регистрация пользователей
+# =====================================================
+allow_registration = true
+# Токен для регистрации (задаётся через env: TUWUNEL_REGISTRATION_TOKEN)
+#registration_token = ""
+
+allow_guest_access = true
+
+# Предупреждение для открытых серверов
+yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse = true
+
+# =====================================================
+# Федерация
+# =====================================================
+allow_federation = true
+# Доверенные сервера для ускорения федерации
+trusted_servers = [
+    "matrix.org",
+    "tchncs.de",
+    "envs.net",
+    "matrix.tedomum.net",
+    "ru-matrix.org"
+]
+
+# =====================================================
+# TURN/STUN
+# =====================================================
+# Секрет для генерации временных учётных данных
+#turn_secret = "***"
+
+# TTL токена TURN (в секундах, 24 часа по умолчанию)
+turn_ttl = 86400
+
+# URIs TURN-сервера (клиенты будут использовать их для подключения)
+turn_uris = [
+    "turns:matrix.egoidei.giize.com:5349?transport=udp",
+    "turn:matrix.egoidei.giize.com:3478?transport=udp",
+    "turns:matrix.egoidei.giize.com:5349?transport=tcp",
+    "turn:matrix.egoidei.giize.com:3478?transport=tcp"
+]
+
+# =====================================================
+# Логирование (опционально)
+# =====================================================
+ log = "debug"  # warn, info, debug, state_res=warn
+
+
+[matrix_rtc]
+enabled = true
+#livekit_service_url = "https://matrix.egoidei.giize.com/livekit-jwt"
+livekit_service_url = "http://lk-jwt-service:8081/"
+legacy = "livekit"
+
+[global.well_known]
+livekit_url = "https://matrix.egoidei.giize.com/livekit-jwt"

@@ -12,7 +12,7 @@ sudo apt update && sudo apt install git cron -y
 
 ```bash
 git clone https://github.com/KozinOleg97/HomeServerConfig /tmp/homeserver
-cp -r /tmp/homeserver/. /opt/
+cp -r /tmp/homeserver/. /opt/docker-restore
 rm -rf /tmp/homeserver
 ```
 

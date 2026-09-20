@@ -1,0 +1,26 @@
+services:
+  transmission:
+    image: linuxserver/transmission:latest
+    container_name: transmission
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1003
+      - TZ=Europe/Moscow
+      - USER=admin
+      - PASS=${TRANSMISSION_ADMIN_PASS}
+      - TRANSMISSION_WEB_HOME=/combustion-release
+      - PEERPORT=51413                               # порт для входящих пиров
+    volumes:
+      - ./transmission/config:/config
+      - /mnt/media/downloads:/downloads              # готовые загрузки
+      - /mnt/media/downloads/incomplete:/incomplete   # незавершённые загрузки
+      - /mnt/media/downloads/watch:/watch            # папка для авто‑добавления торрентов
+    ports:
+      - "51413:51413"                                # торрент-порт
+      - "51413:51413/udp"                            # DHT
+      - "9091:9091"                                  # WebUI
+    networks:
+      - main-net
+
+

@@ -1,0 +1,81 @@
+services:
+  prowlarr:
+    image: linuxserver/prowlarr:latest
+    container_name: prowlarr
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1003
+      - TZ=Europe/Moscow
+    volumes:
+      - ./prowlarr/config:/config
+    ports:
+      - "9696:9696"
+    networks:
+      - main-net
+
+  radarr:
+    image: linuxserver/radarr:latest
+    container_name: radarr
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1003
+      - TZ=Europe/Moscow
+    volumes:
+      - ./radarr/config:/config
+      - /mnt/media/downloads:/downloads         # папка загрузок Transmission
+      - /mnt/media/media/movies:/movies         # библиотека фильмов
+    ports:
+      - "7878:7878"
+    networks:
+      - main-net
+
+  sonarr:
+    image: linuxserver/sonarr:latest
+    container_name: sonarr
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1003
+      - TZ=Europe/Moscow
+    volumes:
+      - ./sonarr/config:/config
+      - /mnt/media/downloads:/downloads         # папка загрузок
+      - /mnt/media/media/tv:/tv                 # библиотека сериалов
+    ports:
+      - "8989:8989"
+    networks:
+      - main-net
+
+  lidarr:
+    image: linuxserver/lidarr:latest
+    container_name: lidarr
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1003
+      - TZ=Europe/Moscow
+    volumes:
+      - ./lidarr/config:/config
+      - /mnt/media/downloads:/downloads         # папка загрузок
+      - /mnt/media/media/music:/music           # библиотека музыки
+    ports:
+      - "8686:8686"
+    networks:
+      - main-net
+
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    container_name: jellyseerr
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1003
+      - TZ=Europe/Moscow
+    volumes:
+      - ./jellyseerr/config:/app/config
+    ports:
+      - "5055:5055" # Порт веб-интерфейса
+    networks:
+      - main-net

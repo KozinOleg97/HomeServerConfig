@@ -1,0 +1,12 @@
+services:
+  webdav:
+    image: ugeek/webdav:alpine
+    container_name: webdav
+    restart: unless-stopped
+    environment:
+      - USERNAME=radxa
+      - PASSWORD=${WEBDAV_ADMIN_PASS}
+    volumes:
+      - /mnt/media:/data                   # корень хранилища
+    networks:
+      - main-net

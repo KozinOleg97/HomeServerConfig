@@ -1,0 +1,26 @@
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1003
+      - TZ=Europe/Moscow
+    volumes:
+      - ./jellyfin/config:/config       # хранение конфигурации, базы данных, метаданных
+      - /mnt/media/media:/media         # готовые медиафайлы
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/video0:/dev/video0
+      - /dev/video1:/dev/video1
+    group_add:
+      - "44"   # группа video
+    ports:
+      - "8096:8096"                     # WebUI
+    networks:
+      - main-net
+
+networks:
+  main-net:
+    external: true

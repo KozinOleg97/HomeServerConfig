@@ -1,0 +1,15 @@
+services:
+  tuwunel:
+    image: jevolk/tuwunel:latest
+    container_name: tuwunel
+    restart: unless-stopped
+    volumes:
+      - ./tuwunel_data:/var/lib/tuwunel
+      - ./tuwunel.toml:/etc/tuwunel/tuwunel.toml:ro
+    environment:
+      - TUWUNEL_CONFIG=/etc/tuwunel/tuwunel.toml
+      - TUWUNEL_TURN_SECRET=${TURN_SERVER_TOKEN}
+    #      - TUWUNEL_REGISTRATION_TOKEN=${TUWUNEL_REGISTRATION_TOKEN}
+    networks:
+      - main-net
+
