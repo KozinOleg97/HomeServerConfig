@@ -8,8 +8,8 @@ services:
       - LIVEKIT_URL=wss://meet.egoidei.giize.com
       # Список доменов Matrix-серверов, которым разрешено создавать комнаты
       - LIVEKIT_FULL_ACCESS_HOMESERVERS=matrix.egoidei.giize.com
-      - LIVEKIT_KEYS=${LIVEKIT_KEY}:${LIVEKIT_SECRET}
-      - LIVEKIT_TURN_SECRET=${TURN_SERVER_TOKEN}
+      - LIVEKIT_KEY=${LIVEKIT_KEY}
+      - LIVEKIT_SECRET=${LIVEKIT_SECRET}
     #    ports:
     #      - "127.0.0.1:8081:8081"
     networks:
