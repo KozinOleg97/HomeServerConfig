@@ -10,6 +10,7 @@ include:
   - ./transmission/docker-compose.yaml
   - ./jellyfin/docker-compose.yaml
   - ./media-automation/docker-compose.yaml
-  - ./dns/docker-compose.yaml
+  #  - ./dns/docker-compose.yaml
   #  - ./adguard-unbound/docker-compose.yaml
   - ./webdav/docker-compose.yaml
+  - ./homeassistant/docker-compose.yaml

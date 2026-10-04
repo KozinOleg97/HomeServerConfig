@@ -89,6 +89,56 @@ server {
 
 
     # ============================================
+    # Seerr  – каталог и запросы
+    # ============================================
+
+    location ^~ /seerr {
+        set $app 'seerr';
+
+        # Обрезаем префикс /seerr перед отправкой в контейнер
+        rewrite ^/seerr/?(.*)$ /$1 break;
+        proxy_pass http://seerr:5055;  # без слеша на конце!
+
+        # Базовые заголовки
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+
+        # Корректировка Location-заголовков от бэкенда
+        proxy_redirect ^ /$app;
+        proxy_redirect /setup /$app/setup;
+        proxy_redirect /login /$app/login;
+
+        # Обязательно отключаем сжатие, чтобы sub_filter работал
+        proxy_set_header Accept-Encoding "";
+
+        # Фильтрация всех типов ответов
+        sub_filter_once off;
+        sub_filter_types *;
+
+        # Внедряем скрипт перехвата pushState/replaceState
+        sub_filter '</head>' '<script language="javascript">(()=>{var t="$app";let e=history.pushState;history.pushState=function a(){arguments[2]&&!arguments[2].startsWith("/"+t)&&(arguments[2]="/"+t+arguments[2]);let s=e.apply(this,arguments);return window.dispatchEvent(new Event("pushstate")),s};let a=history.replaceState;history.replaceState=function e(){arguments[2]&&!arguments[2].startsWith("/"+t)&&(arguments[2]="/"+t+arguments[2]);let s=a.apply(this,arguments);return window.dispatchEvent(new Event("replacestate")),s},window.addEventListener("popstate",()=>{console.log("popstate")})})();</script></head>';
+
+        # Замена статических ссылок в HTML
+        sub_filter 'href="/"' 'href="/$app"';
+        sub_filter 'href="/login"' 'href="/$app/login"';
+        sub_filter 'href:"/"' 'href:"/$app"';
+        sub_filter '\/_next' '\/$app\/_next';
+        sub_filter '/_next' '/$app/_next';
+        sub_filter '/api/v1' '/$app/api/v1';
+        sub_filter '/login/plex/loading' '/$app/login/plex/loading';
+        sub_filter '/images/' '/$app/images/';
+        sub_filter '/android-' '/$app/android-';
+        sub_filter '/apple-' '/$app/apple-';
+        sub_filter '/favicon' '/$app/favicon';
+        sub_filter '/logo_' '/$app/logo_';
+        sub_filter '/site.webmanifest' '/$app/site.webmanifest';
+    }
+
+
+    # ============================================
     # WebDAV доступ к файлам
     # ============================================
     location /webdav/ {
@@ -320,5 +370,49 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# -----------------------------------------------------------
+# Home Assistant (home.egoidei.giize.com)
+# -----------------------------------------------------------
+server {
+    listen 80;
+    server_name ${HOMEASSISTANT_DOMAIN};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${HOMEASSISTANT_DOMAIN};
+
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+
+    ssl_certificate /etc/nginx/acme.sh/${DOMAIN}_ecc/fullchain.cer;
+    ssl_certificate_key /etc/nginx/acme.sh/${DOMAIN}_ecc/${DOMAIN}.key;
+
+    # Большие запросы (резервные копии, загрузки)
+    client_max_body_size 512M;
+
+    location / {
+        proxy_pass http://10.100.0.1:8123;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+
+        # Критически важно для WebSocket (live-обновления)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+
+        # Отключаем буферизацию для корректной работы стримов
+        proxy_buffering off;
+
+        # Таймауты для длительных соединений
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
     }
 }
